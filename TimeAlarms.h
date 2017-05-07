@@ -84,6 +84,8 @@ public:
   TimeAlarmsClass();
   // functions to create alarms and timers
 
+  time_t (*customTimeGetter)();
+
   // trigger once at the given time in the future
   AlarmID_t triggerOnce(time_t value, OnTick_t onTickHandler) {
     if (value <= 0) return dtINVALID_ALARM_ID;

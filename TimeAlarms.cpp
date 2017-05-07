@@ -42,7 +42,7 @@ AlarmClass::AlarmClass()
 void AlarmClass::updateNextTrigger()
 {
   if (Mode.isEnabled) {
-    time_t time = now();
+    time_t time = (*Alarm.customTimeGetter)();
     if (dtIsAlarm(Mode.alarmType) && nextTrigger <= time) {
       // update alarm if next trigger is not yet in the future
       if (Mode.alarmType == dtExplicitAlarm) {
@@ -50,7 +50,7 @@ void AlarmClass::updateNextTrigger()
         nextTrigger = value;  // yes, trigger on this value
       } else if (Mode.alarmType == dtDailyAlarm) {
         //if this is a daily alarm
-        if (value + previousMidnight(now()) <= time) {
+        if (value + previousMidnight((*Alarm.customTimeGetter)()) <= time) {
           // if time has passed then set for tomorrow
           nextTrigger = value + nextMidnight(time);
         } else {
@@ -59,7 +59,7 @@ void AlarmClass::updateNextTrigger()
         }
       } else if (Mode.alarmType == dtWeeklyAlarm) {
         // if this is a weekly alarm
-        if ((value + previousSunday(now())) <= time) {
+        if ((value + previousSunday((*Alarm.customTimeGetter)())) <= time) {
           // if day has passed then set for the next week.
           nextTrigger = value + nextSunday(time);
         } else {
@@ -87,6 +87,7 @@ TimeAlarmsClass::TimeAlarmsClass()
   for(uint8_t id = 0; id < dtNBR_ALARMS; id++) {
     free(id);   // ensure all Alarms are cleared and available for allocation
   }
+  customTimeGetter = now;
 }
 
 void TimeAlarmsClass::enable(AlarmID_t ID)
@@ -212,7 +213,7 @@ void TimeAlarmsClass::waitForRollover( dtUnits_t Units)
 
 uint8_t TimeAlarmsClass::getDigitsNow( dtUnits_t Units)
 {
-  time_t time = now();
+  time_t time = (*customTimeGetter)();
   if (Units == dtSecond) return numberOfSeconds(time);
   if (Units == dtMinute) return numberOfMinutes(time);
   if (Units == dtHour) return numberOfHours(time);
@@ -234,7 +235,7 @@ void TimeAlarmsClass::serviceAlarms()
   if (!isServicing) {
     isServicing = true;
     for (servicedAlarmId = 0; servicedAlarmId < dtNBR_ALARMS; servicedAlarmId++) {
-      if (Alarm[servicedAlarmId].Mode.isEnabled && (now() >= Alarm[servicedAlarmId].nextTrigger)) {
+      if (Alarm[servicedAlarmId].Mode.isEnabled && ((*customTimeGetter)() >= Alarm[servicedAlarmId].nextTrigger)) {
         OnTick_t TickHandler = Alarm[servicedAlarmId].onTickHandler;
         if (Alarm[servicedAlarmId].Mode.isOneShot) {
           free(servicedAlarmId);  // free the ID if mode is OnShot
@@ -268,7 +269,7 @@ time_t TimeAlarmsClass::getNextTrigger()
 // attempt to create an alarm and return true if successful
 AlarmID_t TimeAlarmsClass::create(time_t value, OnTick_t onTickHandler, uint8_t isOneShot, dtAlarmPeriod_t alarmType)
 {
-  if ( ! ( (dtIsAlarm(alarmType) && now() < SECS_PER_YEAR) || (dtUseAbsoluteValue(alarmType) && (value == 0)) ) ) {
+  if ( ! ( (dtIsAlarm(alarmType) && (*customTimeGetter)() < SECS_PER_YEAR) || (dtUseAbsoluteValue(alarmType) && (value == 0)) ) ) {
     // only create alarm ids if the time is at least Jan 1 1971
     for (uint8_t id = 0; id < dtNBR_ALARMS; id++) {
       if (Alarm[id].Mode.alarmType == dtNotAllocated) {
@@ -287,4 +288,3 @@ AlarmID_t TimeAlarmsClass::create(time_t value, OnTick_t onTickHandler, uint8_t 
 
 // make one instance for the user to use
 TimeAlarmsClass Alarm = TimeAlarmsClass() ;
-
